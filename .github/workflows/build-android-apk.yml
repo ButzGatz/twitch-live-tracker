@@ -26,6 +26,7 @@ jobs:
         shell: bash
         run: |
           mkdir -p android/app/src/main/java/de/butzgatz/supportmax android/app/src/main/res/drawable-nodpi
+          echo "android.useAndroidX=true" > android/gradle.properties
           cp butzgatz.png android/app/src/main/res/drawable-nodpi/butzgatz.png
           cat > android/settings.gradle.kts <<'EOF'
           pluginManagement { repositories { google(); mavenCentral(); gradlePluginPortal() } }
