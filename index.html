@@ -36,3 +36,16 @@ if('serviceWorker'in navigator)window.addEventListener('load',()=>navigator.serv
   loadChannels=async function(){await originalLoad();const cards=[...document.querySelectorAll('.card')];for(let i=0;i<cards.length;i+=100){const batch=cards.slice(i,i+100),params=new URLSearchParams();batch.forEach(card=>params.append('user_id',card.dataset.id));try{const {data}=await api('streams?'+params),starts=new Map(data.map(stream=>[stream.user_id,stream.started_at]));batch.forEach(card=>{const start=starts.get(card.dataset.id);let badge=card.querySelector('.uptime');if(!badge){badge=document.createElement('span');badge.className='uptime';card.append(badge)}badge.textContent=start?'🟢 '+formatDuration(start):'';badge.title=start?'Stream läuft seit '+new Date(start).toLocaleString('de-DE'):'';badge.style.display=start?'':'none'})}catch(error){console.warn('Stream-Laufzeit konnte nicht aktualisiert werden',error)}}};
 })();
 </script>
+
+<script>
+(()=>{
+  const style=document.createElement('style');
+  style.textContent='.avg-viewers{position:absolute;left:8px;top:8px;z-index:1;background:#0e0e10dd;color:#f1c40f;padding:5px 8px;border-radius:4px;font-size:12px;font-weight:800;pointer-events:none;white-space:nowrap}';
+  document.head.append(style);
+  const key='tw_viewer_samples_v1';
+  let samples={};
+  try{samples=JSON.parse(localStorage.getItem(key)||'{}')}catch{}
+  const originalApi=api;
+  api=async function(path){const result=await originalApi(path);if(/^streams(?:\?|$)/.test(path)&&Array.isArray(result.data)){const now=Date.now();for(const stream of result.data){const id=stream.user_id;let sample=samples[id];if(!sample||sample.startedAt!==stream.started_at)sample=samples[id]={startedAt:stream.started_at,sum:0,count:0,lastAt:0};if(now-sample.lastAt>=9000){sample.sum+=Number(stream.viewer_count)||0;sample.count++;sample.lastAt=now}const card=document.querySelector('.card[data-id="'+CSS.escape(id)+'"]');if(card){let badge=card.querySelector('.avg-viewers');if(!badge){badge=document.createElement('span');badge.className='avg-viewers';card.append(badge)}badge.textContent='Ø '+Math.round(sample.sum/sample.count).toLocaleString('de-DE');badge.title='Durchschnitt aus '+sample.count+' Twitch-Messungen seit '+new Date(sample.startedAt).toLocaleString('de-DE')}}localStorage.setItem(key,JSON.stringify(samples))}return result};
+})();
+</script>
