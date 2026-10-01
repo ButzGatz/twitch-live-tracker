@@ -25,3 +25,14 @@ function ready(){$('login').classList.add('hidden');$('connect').classList.add('
 if(location.hash.includes('access_token=')){const p=new URLSearchParams(location.hash.slice(1));if(p.get('state')!==sessionStorage.getItem('tw_state')){history.replaceState(null,'',location.pathname);status('Anmeldung nicht bestätigt. Bitte erneut verbinden.')}else{token=p.get('access_token');localStorage.setItem('tw_token',token);history.replaceState(null,'',location.pathname)}}if(token&&clientId)ready();
 if('serviceWorker'in navigator)window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js').catch(()=>{}));
 </script></body></html>
+
+<script>
+(()=>{
+  const style=document.createElement('style');
+  style.textContent='.card{container-type:inline-size}.uptime{position:absolute;left:8px;top:calc(56.25cqw - 34px);z-index:1;background:#0e0e10dd;color:#53fc18;padding:5px 8px;border-radius:4px;font-size:12px;font-weight:800;pointer-events:none;white-space:nowrap}';
+  document.head.append(style);
+  const formatDuration=startedAt=>{const start=Date.parse(startedAt);if(!Number.isFinite(start))return '';const seconds=Math.max(0,Math.floor((Date.now()-start)/1000)),days=Math.floor(seconds/86400),hours=Math.floor(seconds%86400/3600),minutes=Math.floor(seconds%3600/60);return days?days+' Tg. '+hours+' Std.':hours?hours+' Std. '+minutes+' Min.':minutes+' Min.'};
+  const originalLoad=loadChannels;
+  loadChannels=async function(){await originalLoad();const cards=[...document.querySelectorAll('.card')];for(let i=0;i<cards.length;i+=100){const batch=cards.slice(i,i+100),params=new URLSearchParams();batch.forEach(card=>params.append('user_id',card.dataset.id));try{const {data}=await api('streams?'+params),starts=new Map(data.map(stream=>[stream.user_id,stream.started_at]));batch.forEach(card=>{const start=starts.get(card.dataset.id);let badge=card.querySelector('.uptime');if(!badge){badge=document.createElement('span');badge.className='uptime';card.append(badge)}badge.textContent=start?'🟢 '+formatDuration(start):'';badge.title=start?'Stream läuft seit '+new Date(start).toLocaleString('de-DE'):'';badge.style.display=start?'':'none'})}catch(error){console.warn('Stream-Laufzeit konnte nicht aktualisiert werden',error)}}};
+})();
+</script>
