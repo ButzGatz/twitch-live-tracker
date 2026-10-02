@@ -36,4 +36,28 @@ if('serviceWorker'in navigator)window.addEventListener('load',()=>navigator.serv
   loadChannels=async function(){await originalLoad();const cards=[...document.querySelectorAll('.card')];for(let i=0;i<cards.length;i+=100){const batch=cards.slice(i,i+100),params=new URLSearchParams();batch.forEach(card=>params.append('user_id',card.dataset.id));try{const {data}=await api('streams?'+params),starts=new Map(data.map(stream=>[stream.user_id,stream.started_at]));batch.forEach(card=>{const start=starts.get(card.dataset.id);let badge=card.querySelector('.uptime');if(!badge){badge=document.createElement('span');badge.className='uptime';card.append(badge)}badge.textContent=start?'🟢 '+formatDuration(start):'';badge.title=start?'Stream läuft seit '+new Date(start).toLocaleString('de-DE'):'';badge.style.display=start?'':'none'})}catch(error){console.warn('Stream-Laufzeit konnte nicht aktualisiert werden',error)}}};
 })();
 </script>
-
+<script>
+(()=>{
+  const standalone=()=>matchMedia('(display-mode: standalone)').matches||navigator.standalone===true;
+  const mobile=/Android|iPhone|iPad|iPod/i.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
+  if(!mobile||standalone())return;
+  const ios=/iPhone|iPad|iPod/i.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
+  const key='supportmax_install_later';let deferred=null;
+  const readLater=()=>{try{return Number(localStorage.getItem(key)||0)}catch{return 0}};
+  const snooze=()=>{try{localStorage.setItem(key,String(Date.now()+7*86400000))}catch{}};
+  const panel=document.createElement('section');panel.id='install-offer';panel.hidden=true;panel.setAttribute('aria-labelledby','install-title');
+  panel.innerHTML='<h2 id="install-title">💜 App installieren?</h2><p id="install-help">Möchtest du ButzGatz Support Max auf deinem Handy installieren? Dann kannst du die App direkt vom Startbildschirm öffnen.</p><div class="install-actions"><button id="install-now" type="button">App installieren</button><button id="install-later" class="secondary" type="button">Später</button></div><p id="install-steps" hidden></p>';
+  const style=document.createElement('style');style.textContent='#install-offer{background:#18181b;border:1px solid #9147ff;border-radius:12px;padding:18px;margin-bottom:18px}#install-offer[hidden]{display:none}#install-title{font-size:18px;margin:0 0 8px}#install-offer p{line-height:1.5;margin:8px 0;color:#d5d5df}.install-actions{display:flex;gap:10px;flex-wrap:wrap}#install-steps{padding-top:8px}';document.head.append(style);document.querySelector('main').prepend(panel);
+  const button=panel.querySelector('#install-now'),steps=panel.querySelector('#install-steps');
+  const show=()=>{if(!standalone()&&readLater()<Date.now())panel.hidden=false};
+  window.addEventListener('beforeinstallprompt',event=>{event.preventDefault();deferred=event;button.textContent='App installieren';steps.hidden=true;show()});
+  window.addEventListener('appinstalled',()=>{deferred=null;panel.hidden=true});
+  matchMedia('(display-mode: standalone)').addEventListener('change',()=>{if(standalone())panel.hidden=true});
+  panel.querySelector('#install-later').onclick=()=>{snooze();panel.hidden=true};
+  button.onclick=async()=>{
+    if(deferred){const prompt=deferred;deferred=null;button.disabled=true;try{await prompt.prompt();const choice=await prompt.userChoice;if(choice.outcome==='accepted')panel.hidden=true;else{snooze();panel.hidden=true}}catch{steps.hidden=false;steps.textContent='Öffne das Browsermenü und wähle „App installieren“ oder „Zum Startbildschirm hinzufügen“.'}finally{button.disabled=false}return}
+    steps.hidden=false;steps.textContent=ios?'Öffne diesen Link in Safari. Tippe auf „Teilen“ (gegebenenfalls unter „Mehr“), dann auf „Zum Home-Bildschirm“. Aktiviere, falls angeboten, „Als Web-App öffnen“ und tippe auf „Hinzufügen“.':'Öffne diesen Link in Chrome oder Edge. Tippe im Browsermenü auf „App installieren“ oder „Zum Startbildschirm hinzufügen“ und bestätige.';
+  };
+  show();
+})();
+</script>
