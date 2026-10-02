@@ -61,3 +61,51 @@ if('serviceWorker'in navigator)window.addEventListener('load',()=>navigator.serv
   show();
 })();
 </script>
+<script>
+(()=>{
+  const panel=document.createElement('section');panel.id='account-panel';panel.className='account-panel';
+  panel.innerHTML='<h2>Mein Konto</h2><div class="account-identity"><img id="account-avatar" alt="" hidden><div><strong id="account-name">Nicht angemeldet</strong><p id="account-hint">Melde dich mit Twitch an, um Favoriten und deine Sortierung zu speichern.</p></div></div><button id="account-login" type="button">Mit Twitch anmelden</button><div id="account-settings" hidden><div class="account-controls"><label>Sortierung <select id="account-sort"><option value="viewers">Zuschauerzahl</option><option value="name">Name A–Z</option><option value="favorites">Favoriten zuerst</option></select></label><label><input id="account-only-favorites" type="checkbox"> Nur Favoriten anzeigen</label><button id="account-logout" class="secondary" type="button">Abmelden</button></div><p class="account-note">Favoriten und Sortierung werden für dein Twitch-Konto auf diesem Gerät gespeichert. Es werden nur gerade aktive Streams angezeigt.</p><p id="account-feedback" role="status"></p></div>';
+  const style=document.createElement('style');style.textContent='.account-panel{background:#18181b;border:1px solid #303036;border-radius:12px;padding:18px;margin-bottom:18px}.account-panel h2{margin:0 0 12px;font-size:18px}.account-identity{display:flex;align-items:center;gap:12px}.account-identity img{width:48px;height:48px;border-radius:50%;object-fit:cover}.account-identity p{margin:5px 0 12px;color:#adadb8;font-size:13px;line-height:1.5}.account-controls{display:flex;align-items:center;gap:14px;flex-wrap:wrap}.account-controls label{display:flex;align-items:center;gap:8px}.account-controls select{background:#303036;color:#efeff1;border:1px solid #666;border-radius:7px;padding:9px}.account-controls input[type=checkbox]{min-width:0;flex:none;width:18px;height:18px;padding:0;accent-color:#9147ff}.account-note{color:#adadb8;font-size:12px;line-height:1.5}.favorite-button{position:absolute;left:8px;top:8px;z-index:3;padding:5px 8px;background:#111d;font-size:18px;color:#ffd361}.favorite-button:focus-visible{outline:3px solid white;outline-offset:2px}#account-feedback{font-size:13px;color:#c6a0ff}.account-panel [hidden]{display:none!important}';document.head.append(style);document.querySelector('main').prepend(panel);
+  const name=panel.querySelector('#account-name'),hint=panel.querySelector('#account-hint'),settings=panel.querySelector('#account-settings'),sort=panel.querySelector('#account-sort'),only=panel.querySelector('#account-only-favorites'),feedback=panel.querySelector('#account-feedback'),signIn=panel.querySelector('#account-login');
+  signIn.onclick=()=>login();panel.querySelector('#account-logout').onclick=()=>logout();
+  let key='',prefs={sort:'viewers',only:false,favorites:[]},initialized=false;
+  const grid=document.getElementById('grid');
+  const favorite=id=>prefs.favorites.includes(id);
+  function save(){try{localStorage.setItem(key,JSON.stringify(prefs));feedback.textContent='Einstellungen gespeichert.'}catch{feedback.textContent='Der Browser erlaubt keine Speicherung. Die Einstellungen gelten nur für diesen Besuch.'}}
+  const observer=new MutationObserver(()=>apply());
+  function apply(){
+    if(!initialized)return;
+    observer.disconnect();
+    let visible=0;
+    for(const group of grid.querySelectorAll('.team-section')){
+      const cards=group.querySelector('.team-grid');if(!cards)continue;
+      const list=[...cards.querySelectorAll('.card')];
+      for(const card of list){
+        const id=card.dataset.id;let star=card.querySelector('.favorite-button');
+        if(!star){star=document.createElement('button');star.type='button';star.className='favorite-button';star.onclick=event=>{event.stopPropagation();prefs.favorites=favorite(id)?prefs.favorites.filter(value=>value!==id):[...prefs.favorites,id];save();apply()};card.append(star)}
+        star.textContent=favorite(id)?'★':'☆';star.setAttribute('aria-pressed',String(favorite(id)));star.setAttribute('aria-label',(favorite(id)?'Favorit entfernen: ':'Als Favorit speichern: ')+(card.querySelector('.name')?.textContent||''));star.title=favorite(id)?'Favorit entfernen':'Als Favorit speichern';
+        card.hidden=prefs.only&&!favorite(id);
+      }
+      const viewers=card=>Number(card.querySelector('.viewers')?.textContent.replace(/[^0-9]/g,'')||0);
+      const label=card=>card.querySelector('.name')?.textContent||'';
+      list.sort((a,b)=>{if(prefs.sort==='favorites'){const delta=Number(favorite(b.dataset.id))-Number(favorite(a.dataset.id));if(delta)return delta}return(prefs.sort==='name'?0:viewers(b)-viewers(a))||label(a).localeCompare(label(b),'de')});
+      for(const card of list)cards.append(card);
+      const count=list.filter(card=>!card.hidden).length;group.hidden=count===0;visible+=count;
+    }
+    let empty=panel.querySelector('#account-empty');
+    if(!empty){empty=document.createElement('p');empty.id='account-empty';empty.className='account-note';panel.append(empty)}
+    empty.hidden=!prefs.only||visible>0;empty.textContent='Keiner deiner Favoriten ist gerade live. Deaktiviere „Nur Favoriten anzeigen“, um die übrigen Streams zu sehen.';
+    observer.observe(grid,{childList:true,subtree:true});
+  }
+  sort.onchange=()=>{prefs.sort=sort.value;save();apply()};only.onchange=()=>{prefs.only=only.checked;save();apply()};
+  if(!token)return;
+  getSelf().then(user=>{
+    if(!user?.id)throw Error('Bitte erneut mit Twitch anmelden.');
+    key='supportmax_preferences_'+user.id;
+    try{const stored=JSON.parse(localStorage.getItem(key)||'null');if(stored){prefs.sort=['viewers','name','favorites'].includes(stored.sort)?stored.sort:'viewers';prefs.only=stored.only===true;prefs.favorites=Array.isArray(stored.favorites)?[...new Set(stored.favorites.filter(id=>typeof id==='string'&&/^\d+$/.test(id)))]:[]}}catch{feedback.textContent='Gespeicherte Einstellungen konnten nicht geladen werden.'}
+    name.textContent=user.display_name||user.login;hint.textContent='Angemeldet mit Twitch · Alle Funktionen kostenlos';signIn.hidden=true;settings.hidden=false;sort.value=prefs.sort;only.checked=prefs.only;
+    const avatar=panel.querySelector('#account-avatar');if(user.profile_image_url){avatar.src=user.profile_image_url;avatar.hidden=false;avatar.onerror=()=>{avatar.hidden=true}}
+    initialized=true;apply();
+  }).catch(error=>{hint.textContent=error.message;signIn.hidden=false});
+})();
+</script>
