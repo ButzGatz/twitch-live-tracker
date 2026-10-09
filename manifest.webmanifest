@@ -1,6 +1,6 @@
 {
-  "name": "Twitch Live Tracker",
-  "short_name": "Twitch Live Tracker",
+  "name": "NOXVYR Live Tracker",
+  "short_name": "NOXVYR Live Tracker",
   "description": "Deine gefolgten Twitch-Kanäle auf einen Blick.",
   "lang": "de",
   "start_url": "./",
@@ -17,3 +17,4 @@
     }
   ]
 }
+
