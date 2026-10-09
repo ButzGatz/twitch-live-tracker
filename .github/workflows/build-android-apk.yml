@@ -4,7 +4,7 @@ on:
   push:
     paths:
       - '.github/workflows/build-android-apk.yml'
-      - 'butzgatz.png'
+      - 'icon.svg'
 permissions:
   contents: write
 jobs:
@@ -25,16 +25,22 @@ jobs:
       - name: Generate Android project
         shell: bash
         run: |
-          mkdir -p android/app/src/main/java/de/butzgatz/supportmax android/app/src/main/res/drawable-nodpi
+          mkdir -p android/app/src/main/java/de/noxvyr/livetracker android/app/src/main/res/drawable-nodpi
           echo "android.useAndroidX=true" > android/gradle.properties
-          cp butzgatz.png android/app/src/main/res/drawable-nodpi/butzgatz.png
+          cat > android/app/src/main/res/drawable-nodpi/noxvyr.xml <<'EOF'
+          <vector xmlns:android="http://schemas.android.com/apk/res/android" android:width="108dp" android:height="108dp" android:viewportWidth="512" android:viewportHeight="512">
+              <path android:fillColor="#0e0e10" android:pathData="M0,0h512v512h-512z" />
+              <path android:fillColor="#b491ff" android:pathData="M112,376V136h56l176,170V136h56v240h-56L168,206v170z" />
+              <path android:strokeColor="#ff646e" android:strokeWidth="12" android:pathData="M112,416h288" />
+          </vector>
+          EOF
           cat > android/settings.gradle.kts <<'EOF'
           pluginManagement { repositories { google(); mavenCentral(); gradlePluginPortal() } }
           dependencyResolutionManagement {
               repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
               repositories { google(); mavenCentral() }
           }
-          rootProject.name = "ButzGatzSupportMax"
+          rootProject.name = "NOXVYRLiveTracker"
           include(":app")
           EOF
           cat > android/build.gradle.kts <<'EOF'
@@ -43,14 +49,14 @@ jobs:
           cat > android/app/build.gradle.kts <<'EOF'
           plugins { id("com.android.application") }
           android {
-              namespace = "de.butzgatz.supportmax"
+              namespace = "de.noxvyr.livetracker"
               compileSdk = 35
               defaultConfig {
-                  applicationId = "de.butzgatz.supportmax"
+                  applicationId = "de.noxvyr.livetracker"
                   minSdk = 23
                   targetSdk = 35
-                  versionCode = 2
-                  versionName = "1.0.1"
+                  versionCode = 3
+                  versionName = "1.1.0"
               }
           }
           dependencies { implementation("androidx.browser:browser:1.8.0") }
@@ -58,8 +64,8 @@ jobs:
           cat > android/app/src/main/AndroidManifest.xml <<'EOF'
           <manifest xmlns:android="http://schemas.android.com/apk/res/android">
               <uses-permission android:name="android.permission.INTERNET" />
-              <application android:allowBackup="false" android:label="ButzGatz Support Max"
-                  android:icon="@drawable/butzgatz" android:theme="@android:style/Theme.Material.NoActionBar"
+              <application android:allowBackup="false" android:label="NOXVYR Live Tracker"
+                  android:icon="@drawable/noxvyr" android:theme="@android:style/Theme.Material.NoActionBar"
                   android:usesCleartextTraffic="false">
                   <activity android:name=".MainActivity" android:exported="true">
                       <intent-filter>
@@ -70,8 +76,8 @@ jobs:
               </application>
           </manifest>
           EOF
-          cat > android/app/src/main/java/de/butzgatz/supportmax/MainActivity.kt <<'EOF'
-          package de.butzgatz.supportmax
+          cat > android/app/src/main/java/de/noxvyr/livetracker/MainActivity.kt <<'EOF'
+          package de.noxvyr.livetracker
 
           import android.app.Activity
           import android.content.Intent
@@ -83,7 +89,7 @@ jobs:
           class MainActivity : Activity() {
               override fun onCreate(savedInstanceState: Bundle?) {
                   super.onCreate(savedInstanceState)
-                  val url = Uri.parse("https://butzgatz.github.io/twitch-live-tracker/")
+                  val url = Uri.parse("https://noxvyr-dev.github.io/noxvyr-live-tracker/")
                   try {
                       CustomTabsIntent.Builder().setShowTitle(true).build().launchUrl(this, url)
                       finish()
@@ -93,7 +99,7 @@ jobs:
                           finish()
                       } catch (fallbackError: Exception) {
                           val message = TextView(this)
-                          message.text = "ButzGatz Support Max konnte keinen Browser öffnen. Bitte installiere Chrome oder einen anderen Browser."
+                          message.text = "NOXVYR Live Tracker konnte keinen Browser öffnen. Bitte installiere Chrome oder einen anderen Browser."
                           message.setPadding(32, 48, 32, 48)
                           setContentView(message)
                       }
@@ -105,10 +111,10 @@ jobs:
         run: gradle --no-daemon --stacktrace -p android assembleDebug
       - uses: actions/upload-artifact@v4
         with:
-          name: ButzGatz-Support-Max-APK
+          name: NOXVYR-Live-Tracker-APK
           path: android/app/build/outputs/apk/debug/app-debug.apk
           retention-days: 30
       - name: Publish APK release
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release create v1.0.1 android/app/build/outputs/apk/debug/app-debug.apk --title "ButzGatz Support Max für Android" --notes "Version 1.0.1 - Öffnet den Tracker in einem sicheren Chrome-Tab. Für Twitch-Anmeldung und Live-Daten ist eine Internetverbindung nötig."
+        run: gh release create v1.1.0 android/app/build/outputs/apk/debug/app-debug.apk --title "NOXVYR Live Tracker für Android" --notes "Version 1.1.0 - Öffnet den Tracker in einem sicheren Chrome-Tab. Für Twitch-Anmeldung und Live-Daten ist eine Internetverbindung nötig."
